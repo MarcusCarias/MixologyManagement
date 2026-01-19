@@ -137,10 +137,27 @@ class EstoqueUpdateSchema(BaseModel):
     class Config:
         from_attributes = True
 
+class EstoqueQtdUpdateSchema(BaseModel):
+    
+    qntAtual: Optional[float] = None
+    estoqueMin: Optional[float] = None
+    estoqueMax: Optional[float] = None
+
+    class Config:
+        from_attributes = True
+
+
 class ReservaSchema(BaseModel):
     
     item_id: int
     quantidadeReservada: float
+
+    class Config:
+        from_attributes = True
+
+class ReservaUpdateSchema(BaseModel):
+    
+    quantidade: float
 
     class Config:
         from_attributes = True

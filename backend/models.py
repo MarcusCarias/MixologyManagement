@@ -1,10 +1,15 @@
-from sqlalchemy import create_engine, Column, Integer, String, Date, ForeignKey, Boolean, UniqueConstraint, Float
+from sqlalchemy import create_engine, Column, Integer, String, Date, ForeignKey, Boolean, UniqueConstraint, Float, VARCHAR
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy_utils.types import ChoiceType
 from sqlalchemy.sql import func
 from enum import Enum
+from dotenv import load_dotenv
+import os
 
-db = create_engine('sqlite:///banco.db', echo=True)
+load_dotenv()
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+db = create_engine(DATABASE_URL, echo=True)
 print(db.url)
 
 Base = declarative_base()
@@ -21,7 +26,7 @@ Base = declarative_base()
 class Usuario(Base):
     __tablename__ = 'usuario'
 
-    cpf = Column("cpf", Integer, primary_key=True)  
+    cpf = Column("cpf", VARCHAR, primary_key=True)  
     nome = Column("nome", String)
     senha = Column("senha", String)
     email = Column("email", String)

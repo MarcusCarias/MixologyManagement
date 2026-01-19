@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from models import Evento, Usuario, Drink, DrinksEvento, Item, UtensilioEvento, ReservaEstoque, Estoque, ListaCompra
 from dependencies import pegar_sessao, verificar_token
 from sqlalchemy.orm import Session
-from schemas import EventoSchema, EventoUpdateSchema, DrinkEventoSchema, UtensilioSchema
+from schemas import EventoSchema, EventoUpdateSchema, DrinkEventoSchema, UtensilioSchema, ReservaUpdateSchema
 from services.reserva_service import gerar_reservas_evento
 
 eventos_router = APIRouter(prefix="/eventos", tags=["eventos"], dependencies=[Depends(verificar_token)])
@@ -26,8 +26,8 @@ async def cadastra_evento(evento_schema: EventoSchema, session: Session = Depend
 @eventos_router.get("/listar")
 async def listar_eventos(session: Session = Depends(pegar_sessao), usuario_criador: Usuario = Depends(verificar_token)):
 
-    if not (usuario_criador.papel == "ADMIN" or usuario_criador.papel == "PLANEJADOR"):
-        raise HTTPException(status_code=403, detail="Apenas usuários com papel de ADMIN ou PLANEJADOR podem visualizar eventos")
+    # if not (usuario_criador.papel == "ADMIN" or usuario_criador.papel == "PLANEJADOR"):
+    #     raise HTTPException(status_code=403, detail="Apenas usuários com papel de ADMIN ou PLANEJADOR podem visualizar eventos")
 
     eventos = session.query(Evento).all()
 
@@ -38,8 +38,8 @@ async def listar_eventos(session: Session = Depends(pegar_sessao), usuario_criad
 @eventos_router.get("/{id_evento}")
 async def listar_eventos(id_evento: int, session: Session = Depends(pegar_sessao), usuario_criador: Usuario = Depends(verificar_token)):
 
-    if not (usuario_criador.papel == "ADMIN" or usuario_criador.papel == "PLANEJADOR"):
-        raise HTTPException(status_code=403, detail="Apenas usuários com papel de ADMIN ou PLANEJADOR podem visualizar eventos")
+    # if not (usuario_criador.papel == "ADMIN" or usuario_criador.papel == "PLANEJADOR"):
+    #     raise HTTPException(status_code=403, detail="Apenas usuários com papel de ADMIN ou PLANEJADOR podem visualizar eventos")
 
     evento = session.query(Evento).filter(Evento.id == id_evento).first()
 
@@ -90,8 +90,8 @@ async def cancelar_evento(id_evento: int, session: Session = Depends(pegar_sessa
 @eventos_router.patch("/{id_evento}/atualizar")
 async def atualizar_evento(id_evento: int, dados: EventoUpdateSchema, session: Session = Depends(pegar_sessao), usuario_criador: Usuario = Depends(verificar_token)):
 
-    if not (usuario_criador.papel == "ADMIN" or usuario_criador.papel == "PLANEJADOR"):
-        raise HTTPException(status_code=403, detail="Apenas usuários com papel de ADMIN ou PLANEJADOR podem atualizar eventos")
+    # if not (usuario_criador.papel == "ADMIN" or usuario_criador.papel == "PLANEJADOR"):
+    #     raise HTTPException(status_code=403, detail="Apenas usuários com papel de ADMIN ou PLANEJADOR podem atualizar eventos")
 
     evento = session.query(Evento).filter(Evento.id == id_evento).first()
 
@@ -106,7 +106,6 @@ async def atualizar_evento(id_evento: int, dados: EventoUpdateSchema, session: S
     session.refresh(evento)
 
     return {"message": f"Evento {evento.id} atualizado com sucesso", "evento": evento}
-
 
 
 @eventos_router.post("/{id_evento}/drinks/adicionar")
@@ -137,18 +136,19 @@ async def adicionar_drink_evento(id_evento: int, drink_schema: DrinkEventoSchema
         raise HTTPException(status_code=400,detail="Drink já foi adicionado a este evento")
     
     drink_evento = DrinksEvento(evento_id=id_evento,drink_id=drink_schema.drink_id,quantidadePrevista=drink_schema.quantidadePrevista)
+    drink_nome = drink.nome
 
     session.add(drink_evento)
     session.commit()
     session.refresh(drink_evento)
 
-    return {"message": f"Drink {drink_evento.id} adicionado com sucesso", "drink": drink_evento}
+    return {"message": f"Drink {drink_nome} adicionado com sucesso ao evento", "drink": drink_evento}
 
 @eventos_router.get("/{id_evento}/drinks")
 async def drink_evento(id_evento: int, session: Session = Depends(pegar_sessao), usuario_criador: Usuario = Depends(verificar_token)):
      
-    if not (usuario_criador.papel == "ADMIN" or usuario_criador.papel == "PLANEJADOR"):
-        raise HTTPException(status_code=403, detail="Apenas usuários com papel de ADMIN ou PLANEJADOR podem visualizar drinks dos eventos")
+    # if not (usuario_criador.papel == "ADMIN" or usuario_criador.papel == "PLANEJADOR"):
+    #     raise HTTPException(status_code=403, detail="Apenas usuários com papel de ADMIN ou PLANEJADOR podem visualizar drinks dos eventos")
     
     evento = session.query(Evento).filter(Evento.id == id_evento).first()
 
@@ -262,8 +262,8 @@ async def reserva_itens(id_evento: int, session: Session = Depends(pegar_sessao)
 @eventos_router.get("/{id_evento}/reservas")
 async def visualizar_reservas(id_evento: int, session: Session = Depends(pegar_sessao), usuario_criador: Usuario = Depends(verificar_token)):
      
-    if not (usuario_criador.papel == "ADMIN" or usuario_criador.papel == "PLANEJADOR"):
-        raise HTTPException(status_code=403, detail="Apenas usuários com papel de ADMIN ou PLANEJADOR podem visualizar reservas no estoque")
+    # if not (usuario_criador.papel == "ADMIN" or usuario_criador.papel == "PLANEJADOR"):
+    #     raise HTTPException(status_code=403, detail="Apenas usuários com papel de ADMIN ou PLANEJADOR podem visualizar reservas no estoque")
     
     evento = session.query(Evento).filter(Evento.id == id_evento).first()
 
@@ -280,10 +280,199 @@ async def visualizar_reservas(id_evento: int, session: Session = Depends(pegar_s
         raise HTTPException(status_code=400, detail="Nenhuma reserva encontrada para este evento")
     
 
-    return {"message": "Reservas encontradas com sucesso", "reservas": reserva}
+    reservas_query = (session.query(ReservaEstoque, Item).join(Item, Item.id == ReservaEstoque.item_id).filter(ReservaEstoque.evento_id == id_evento).all())
+
+    # return {"message": "Reservas encontradas com sucesso", "reservas": reserva}
+
+    return {
+        "reservas": [
+            {
+                "id": r.id,
+                "item_id": r.item_id,
+                "quantidadeReservada": r.quantidadeReservada,
+                "status": r.status,
+                "evento_id": r.evento_id,
+                "item": {
+                    "nome": item.nome,
+                    "unidade": item.unidade
+                }
+            }
+            for r, item in reservas_query
+        ]
+    }
+    
+    
+@eventos_router.post("/{id_evento}/enviar/{id_reserva}")
+async def enviar_reserva_evento(id_evento: int, id_reserva: int, dados: ReservaUpdateSchema, session: Session = Depends(pegar_sessao), usuario_criador: Usuario = Depends(verificar_token)):
+
+    if not (usuario_criador.papel == "ADMIN" or usuario_criador.papel == "ESTOQUISTA"):
+        raise HTTPException(status_code=403, detail="Apenas usuários com papel de ADMIN ou ESTOQUISTA podem enviar eventos")
+
+    if dados.quantidade < 0:
+        raise HTTPException(status_code=400, detail="A quantidade não pode ser negativa")
+
+    evento = session.query(Evento).filter(Evento.id == id_evento).first()
+
+    if not evento:
+        raise HTTPException(status_code=400, detail="Evento não encontrado")
+    
+    if evento.status == "CANCELADO":
+        raise HTTPException(status_code=400, detail="Não é possível enviar um evento cancelado")
+
+    reserva = session.query(ReservaEstoque).filter(ReservaEstoque.id == id_reserva, ReservaEstoque.evento_id == evento.id).first()
+
+    if not reserva:
+        raise HTTPException(status_code=400, detail="Reserva não encontrada para este evento")
+    
+    if reserva.status == "ENVIADA":
+        raise HTTPException(status_code=400, detail="Reserva já foi enviada para este evento")
+
+    if reserva.status == "FINALIZADA":
+        raise HTTPException(400, "Reserva já foi finalizada")
+
+    estoque_item = session.query(Estoque).filter(Estoque.item_id == reserva.item_id).first()
+
+    if not estoque_item:
+            raise HTTPException(status_code=400, detail="Estoque do item não encontrado")
+    
+    reservado = reserva.quantidadeReservada
+    enviado = dados.quantidade
+
+    if reservado >= enviado:
+
+        dif = reservado - enviado
+
+        estoque_item.qntAtual += dif
+        reserva.quantidadeReservada -= dif
 
     
+    elif enviado > reservado:
+        
+        dif = enviado - reservado
+
+        if estoque_item.qntAtual < dif:
+            raise HTTPException(status_code=400, detail=f"Estoque insuficiente para o item {reserva.item_id}")
+
+        estoque_item.qntAtual -= dif
+        reserva.quantidadeReservada = enviado
     
-  
+    reserva.status = "ENVIADA"
+
+    session.commit()    
+    session.refresh(evento)
+
+    return {"message": f"reserva {reserva.id} do evento {evento.id} enviada com sucesso", "reserva": reserva}
+
+@eventos_router.post("/{id_evento}/enviar")
+async def enviar_evento(id_evento: int, session: Session = Depends(pegar_sessao), usuario_criador: Usuario = Depends(verificar_token)):
+
+    if not (usuario_criador.papel == "ADMIN" or usuario_criador.papel == "ESTOQUISTA"):
+        raise HTTPException(status_code=403, detail="Apenas usuários com papel de ADMIN ou ESTOQUISTA podem enviar eventos")
+
+    evento = session.query(Evento).filter(Evento.id == id_evento).first()
+
+    if not evento:
+        raise HTTPException(status_code=400, detail="Evento não encontrado")
+    
+    if evento.status == "CANCELADO":
+        raise HTTPException(status_code=400, detail="Não é possível enviar um evento cancelado")
+
+    reservas = session.query(ReservaEstoque).filter(ReservaEstoque.evento_id == evento.id).all()
+
+    if not reservas:
+        raise HTTPException(status_code=400, detail="Reservas não encontrada para este evento")
+    
+    for reserva in reservas:
+
+        if reserva.status != "ENVIADA":
+            raise HTTPException(status_code=400, detail=f"Não é possível enviar o evento enquanto todas as reservas não forem enviadas")
+
+    evento.status = "ENVIADO"
+
+    session.commit()    
+    session.refresh(evento)
+
+    return {"message": f"Evento {evento.id} enviado com sucesso", "evento": evento}
+
+@eventos_router.post("/{id_evento}/receber/{id_reserva}")
+async def receber_reserva_evento(id_evento: int, id_reserva: int, dados: ReservaUpdateSchema,session: Session = Depends(pegar_sessao), usuario_criador: Usuario = Depends(verificar_token)):
+    
+    if not (usuario_criador.papel == "ADMIN" or usuario_criador.papel == "ESTOQUISTA"):
+        raise HTTPException(status_code=403, detail="Apenas usuários com papel de ADMIN ou ESTOQUISTA podem receber eventos")
+    
+    evento = session.query(Evento).filter(Evento.id == id_evento).first()
+
+    if not evento:
+        raise HTTPException(status_code=400, detail="Evento não encontrado")
+    
+    if evento.status != "ENVIADO":
+        raise HTTPException(status_code=400, detail="Não é possível receber um evento que não foi enviado")
+    
+    reserva = session.query(ReservaEstoque).filter(ReservaEstoque.id == id_reserva, ReservaEstoque.evento_id == evento.id).first()
+    
+    if not reserva:
+        raise HTTPException(status_code=400, detail="Reserva não encontrada para este evento")
+    
+    if reserva.status == "FINALIZADA":
+        raise HTTPException(400, "Reserva já foi finalizada")
+
+    if reserva.status != "ENVIADA":
+        raise HTTPException(status_code=400, detail="Reserva não foi enviada para este evento")
+    
+    estoque_item = session.query(Estoque).filter(Estoque.item_id == reserva.item_id).first()
+
+    if not estoque_item:
+            raise HTTPException(status_code=400, detail="Estoque do item não encontrado")
+    
+    quantidade_recebida = dados.quantidade
+
+    if quantidade_recebida > reserva.quantidadeReservada:
+        raise HTTPException(status_code=400, detail="A quantidade recebida não pode ser maior que a quantidade enviada")
+    
+    if quantidade_recebida < 0:
+        raise HTTPException(status_code=400, detail="A quantidade recebida não pode ser negativa")
+
+    estoque_item.qntAtual += quantidade_recebida
+    reserva.status = "FINALIZADA"
+
+    session.commit()    
+
+    return {"message": f"reserva {reserva.id} do evento {evento.id} recebida com sucesso", "reserva": reserva}
+
+@eventos_router.post("/{id_evento}/receber")
+async def receber_evento(id_evento: int, session: Session = Depends(pegar_sessao), usuario_criador: Usuario = Depends(verificar_token)):
+
+    if not (usuario_criador.papel == "ADMIN" or usuario_criador.papel == "ESTOQUISTA"):
+        raise HTTPException(status_code=403, detail="Apenas usuários com papel de ADMIN ou ESTOQUISTA podem receber eventos")
+
+    evento = session.query(Evento).filter(Evento.id == id_evento).first()
+
+    if not evento:
+        raise HTTPException(status_code=400, detail="Evento não encontrado")
+    
+    if evento.status == "CANCELADO":
+        raise HTTPException(status_code=400, detail="Não é possível receber um evento cancelado")
+
+    if evento.status != "ENVIADO":
+        raise HTTPException(status_code=400, detail="Não é possível receber um evento que não foi enviado")
+     
+    reservas = session.query(ReservaEstoque).filter(ReservaEstoque.evento_id == evento.id).all()
+
+    if not reservas:
+        raise HTTPException(status_code=400, detail="Reservas não encontrada para este evento")
+    
+    for reserva in reservas:
+
+        if reserva.status != "FINALIZADA":
+            raise HTTPException(status_code=400, detail=f"Não é possível receber o evento enquanto todas as reservas não forem finalizadas")
+
+    evento.status = "FINALIZADO"
+
+    session.commit()    
+    session.refresh(evento)
+
+    return {"message": f"Evento {evento.id} finalizado com sucesso", "evento": evento}
+
+
    
    

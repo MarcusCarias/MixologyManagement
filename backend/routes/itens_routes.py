@@ -12,7 +12,7 @@ itens_router = APIRouter(prefix="/itens", tags=["itens"], dependencies=[Depends(
 async def itens():
     return {"message": "Voce acessou a rota de itens"}
 
-@itens_router.post("/cadastro")
+@itens_router.post("/cadastrar")
 async def cadastra_item(item_schema: ItemSchema, session: Session = Depends(pegar_sessao)):
     
     

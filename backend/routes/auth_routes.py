@@ -78,7 +78,13 @@ async def login_form(dados_formulario: OAuth2PasswordRequestForm = Depends(), se
     else:
         acess_token = criar_token(usuario.cpf)
         
-        return {"access_token": acess_token, "token_type": "bearer"}
+        return {"access_token": acess_token, 
+                "token_type": "bearer",
+                "usuario": {
+                "nome": usuario.nome,
+                "email": usuario.email,
+                "papel": usuario.papel}
+            }
 
 
 @auth_router.get("/refresh")
@@ -87,3 +93,12 @@ async def use_refresh_token(usuario: Usuario = Depends(verificar_token)):
     acess_token = criar_token(usuario.cpf)
 
     return {"access_token": acess_token, "token_type": "bearer"}
+
+@auth_router.get("/me")
+async def retorna(usuario: Usuario = Depends(verificar_token)):
+    return {
+        "nome": usuario.nome,
+        "email": usuario.email,
+        "papel": usuario.papel,
+        "cpf": usuario.cpf
+    }
